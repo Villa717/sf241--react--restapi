@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'; // Import for routing
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 
 const App = () => {
   const [posts, setPosts] = useState([]);
   const [newPost, setNewPost] = useState({ title: '', body: '' });
-  const [selectedPost, setSelectedPost] = useState(null); // For PUT/DELETE
+  const [selectedPost, setSelectedPost] = useState(null);
 
   useEffect(() => {
     fetchPosts();
@@ -14,104 +14,120 @@ const App = () => {
   const fetchPosts = async () => {
     try {
       const response = await axios.get('https://jsonplaceholder.typicode.com/posts');
-      setPosts(response.data);
+      // Limiting to 10 for better readability in your UI
+      setPosts(response.data.slice(0, 10));
     } catch (error) {
       console.error('Error fetching posts:', error);
     }
   };
 
   const createPost = async () => {
+    if (!newPost.title || !newPost.body) return alert("Please fill in all fields");
     try {
       const response = await axios.post('https://jsonplaceholder.typicode.com/posts', newPost);
-      setPosts([...posts, response.data]);
-      setNewPost({ title: '', body: '' }); // Clear input fields
+      setPosts([response.data, ...posts]);
+      setNewPost({ title: '', body: '' });
     } catch (error) {
       console.error('Error creating post:', error);
     }
   };
 
   const updatePost = async () => {
-    if (!selectedPost) return; // Make sure a post is selected
-
+    if (!selectedPost) return;
     try {
       const response = await axios.put(`https://jsonplaceholder.typicode.com/posts/${selectedPost.id}`, selectedPost);
-      // Update the post in the state
       const updatedPosts = posts.map(post =>
         post.id === selectedPost.id ? response.data : post
       );
       setPosts(updatedPosts);
-      setSelectedPost(null); // Clear selection after update
+      setSelectedPost(null); 
     } catch (error) {
       console.error('Error updating post:', error);
     }
   };
 
   const deletePost = async (id) => {
-    try {
-      await axios.delete(`https://jsonplaceholder.typicode.com/posts/${id}`);
-      setPosts(posts.filter(post => post.id !== id));
-    } catch (error) {
-      console.error('Error deleting post:', error);
+    if (window.confirm("Are you sure you want to delete this post?")) {
+      try {
+        await axios.delete(`https://jsonplaceholder.typicode.com/posts/${id}`);
+        setPosts(posts.filter(post => post.id !== id));
+      } catch (error) {
+        console.error('Error deleting post:', error);
+      }
     }
   };
 
-  return (
-    <Router> {/* Wrap with Router */}
-      <div className="container">
-        <h1>React REST API Example</h1>
+  // Basic styling to match your dark-themed environment
+  const styles = {
+    container: { backgroundColor: '#1e1e1e', color: 'white', minHeight: '100vh', padding: '20px', fontFamily: 'Arial' },
+    card: { backgroundColor: '#2d2d2d', padding: '15px', borderRadius: '8px', marginBottom: '10px' },
+    input: { display: 'block', width: '100%', marginBottom: '10px', padding: '8px', backgroundColor: '#3c3c3c', color: 'white', border: '1px solid #555' },
+    button: { padding: '8px 15px', cursor: 'pointer', marginRight: '5px' },
+    deleteBtn: { backgroundColor: '#d9534f', color: 'white', border: 'none' },
+    editBtn: { backgroundColor: '#5bc0de', color: 'white', border: 'none' }
+  };
 
-        {/* Navigation (optional) */}
-        <nav>
-           <Link to="/">Home</Link> {/* Example Link */}
+  return (
+    <Router>
+      <div style={styles.container}>
+        <h1>React REST API Manager</h1>
+        <nav style={{ marginBottom: '20px' }}>
+          <Link to="/" style={{ color: '#007bff' }}>Home</Link>
         </nav>
 
         <Routes>
           <Route path="/" element={
-          <>
-            <h2>Posts</h2>
-            <ul>
+            <>
+              {/* UPDATE SECTION (Only shows when editing) */}
+              {selectedPost ? (
+                <div style={styles.card}>
+                  <h2>Edit Post #{selectedPost.id}</h2>
+                  <input
+                    style={styles.input}
+                    value={selectedPost.title}
+                    onChange={e => setSelectedPost({ ...selectedPost, title: e.target.value })}
+                  />
+                  <textarea
+                    style={styles.input}
+                    value={selectedPost.body}
+                    onChange={e => setSelectedPost({ ...selectedPost, body: e.target.value })}
+                  />
+                  <button style={{...styles.button, backgroundColor: '#5cb85c', color: 'white', border: 'none'}} onClick={updatePost}>Save Changes</button>
+                  <button style={styles.button} onClick={() => setSelectedPost(null)}>Cancel</button>
+                </div>
+              ) : (
+                /* CREATE SECTION */
+                <div style={styles.card}>
+                  <h2>Create New Post</h2>
+                  <input
+                    style={styles.input}
+                    placeholder="Title"
+                    value={newPost.title}
+                    onChange={e => setNewPost({ ...newPost, title: e.target.value })}
+                  />
+                  <textarea
+                    style={styles.input}
+                    placeholder="Body"
+                    value={newPost.body}
+                    onChange={e => setNewPost({ ...newPost, body: e.target.value })}
+                  />
+                  <button style={{...styles.button, backgroundColor: '#007bff', color: 'white', border: 'none'}} onClick={createPost}>Create</button>
+                </div>
+              )}
+
+              {/* READ SECTION */}
+              <h2>Recent Posts</h2>
               {posts.map(post => (
-                <li key={post.id} onClick={() => setSelectedPost(post)}>
-                  {post.title}
-                </li>
+                <div key={post.id} style={styles.card}>
+                  <h3>{post.title}</h3>
+                  <p>{post.body}</p>
+                  <button style={{...styles.button, ...styles.editBtn}} onClick={() => setSelectedPost(post)}>Edit</button>
+                  <button style={{...styles.button, ...styles.deleteBtn}} onClick={() => deletePost(post.id)}>Delete</button>
+                </div>
               ))}
-            </ul>
-
-            <h2>Create New Post</h2>
-            <input
-              type="text"
-              placeholder="Title"
-              value={newPost.title}
-              onChange={e => setNewPost({ ...newPost, title: e.target.value })}
-            />
-            <textarea
-              placeholder="Body"
-              value={newPost.body}
-              onChange={e => setNewPost({ ...newPost, body: e.target.value })}
-            />
-            <button onClick={createPost}>Create</button>
-
-            {/* Update Form (Shown when a post is selected) */}
-            {selectedPost && (
-              <div>
-                <h2>Update Post</h2>
-                <input
-                  type="text"
-                  value={selectedPost.title}
-                  onChange={e => setSelectedPost({ ...selectedPost, title: e.target.value })}
-                />
-                <textarea
-                  value={selectedPost.body}
-                  onChange={e => setSelectedPost({ ...selectedPost, body: e.target.value })}
-                />
-                <button onClick={updatePost}>Update</button>
-                <button onClick={() => deletePost(selectedPost.id)}>Delete</button>
-              </div>
-            )}
-          </>
+            </>
           } />
         </Routes>
-
       </div>
     </Router>
   );
